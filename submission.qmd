@@ -41,16 +41,29 @@ The Research Compendium of this study (including data and code) is available at 
 *Read the data here. If the data needs processing, like mutating columns or creating new ones, briefly explain why processing is needed and what you did*. *Include a description of each of the relevant columns in the data.*
 
 ```{r}
+#| label: library
+
+library(readxl)
+
+```
+
+```{r}
 #| label: read-data
 
-# Example code: delete
-1 + 1
+avian_experimental <- read_xlsx("./data/Sakata.xlsx")
+avian_typical <- read_xlsx("./data/Sakata.xlsx", sheet=2)
 
 ```
 
 ### Descriptive statistics
 
 *Calculate and report appropriate summary measures for relevant variables in the data. Create relevant plots: for each, include in the main text a description of the plot (type, axes, colours used and so on) and a description of relevant patterns.*
+
+```{r}
+
+
+
+```
 
 ## Regression modelling
 
