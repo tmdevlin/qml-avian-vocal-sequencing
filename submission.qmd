@@ -7,18 +7,28 @@ format:
   pdf: default
 ---
 
-|                     |                                                 |
-|---------------------|-------------------------------------------------|
-| Group Project title | THE PROJECT TITLE                               |
-| Group members       | MEMBER 1, MEMBER 2, MEMBER 3 (use EXAM NUMBERS) |
+|  |  |
+|-----------------------|-------------------------------------------------|
+| Group Project title | A Bayesian reanalysis of learning biases in avian vocal sequencing |
+| Group members | MEMBER 1, MEMBER 2, MEMBER 3 (use EXAM NUMBERS) |
 
 ## Background
 
-- *Instructions are given in italics. You should remove all instructions before submitting*.
+```{r}
+library(tidyverse) 
+theme_set(theme_light()) 
+library(brms) 
+library(bayesplot) 
+library(posterior) 
+library(ggdist) 
+library(tidybayes) 
+```
 
-- *You MUST include all code and code output in this report. This is a data analysis report, not an essay or journal article.*
+This project sets out to re-analyse the data in the article “Learning Biases Underlie ‘Universals’ in Avian Vocal Sequencing” by James and Sakata (2017). The article explored whether zebra finches learned song sequences through cultural propagation or biological predispositions. They drew some connections to music and speech in humans; suggesting that the sensorimotor processes shared across a variety of vertebrates may underlie “universals” in phonological, prosodic, and musical patterns in humans.
 
-*Write a brief literature background for your study. Explicitly state your Research Questions and, if available, your Research Hypotheses, in the dedicated section below.*
+Zebra finches bred and raised in the lab were tutored with randomised, unbiased synthesised song stimuli made to sound like zebra finch song but with no sequence consistency. The sequences consisted of five typical zebra finch song elements (“syllables”) selected from males in other lab environments. The experimentally tutored finches’ “motifs”, zebra finch songs consisting of syllables arranged into stereotyped sequences, were analysed and compared to the motifs from zebra finch populations raised in labs and tutored with species-typical song stimuli. Three variables were compared when looking at the beginning, middle and end syllables: duration, frequency and amplitude.
+
+They found that, despite being tutored with randomised songs, the zebra finches still preferred placing syllables in particular positions in the motif; preferences that mirrored ones by zebra finches tutored with species-typical song. Table 1, taken from James & Sakata (2017), shows the mean duration, amplitude and mean frequency of the beginning, middle and end syllables in both populations of finches. Both populations show a preference for longer syllables at the beginning and end of the motif than syllables in the middle, with syllables produced at the end being longer ones produced in the beginning. This re-analysis will focus on the duration of the beginning, middle and end syllables in both populations.
 
 ### Research Questions/Hypotheses
 
@@ -28,9 +38,11 @@ format:
 
 ### Open Research statement
 
-*Add a link to the online repository containing the Research Compendium of the study. You should also include a description of the structure of the repository/compendium, with the aim of explaining to a potential user of the repository how to re-run the analysis of this report and re-use the data. It is recommended that your repository has a README file with such information and your description below can match the one in the README file (but it's not mandatory that it does).*
+The Research Compendium of this study (including data and code) is available at [INSERT LINK HERE]. The Compendium is structured thus: 
 
-The Research Compendium of this study (including data and code) is available at \<LINK\>. The Compendium is structured thus: ...
+The data folder contains the data from James & Sakata (2017) in SupplementaryData and a cache folder which contains the cached output of the brms model we fit below. 
+SupplementaryData has two sheets with the experimental data, one for Experimentally tutored zebrafinch and one for the repository zebrafinch. We will read these files and merge them into a single data frame below. 
+The analysis file is submission.qmd. Running the code in this file will reproduce the analysis (note that the Bayesian model is cached, so the Bayesian model will not be fit again when running the code).
 
 ## Data
 
@@ -41,18 +53,22 @@ The Research Compendium of this study (including data and code) is available at 
 *Read the data here. If the data needs processing, like mutating columns or creating new ones, briefly explain why processing is needed and what you did*. *Include a description of each of the relevant columns in the data.*
 
 ```{r}
-#| label: library
 
-library(readxl)
+#| label: read data 
 
-```
+zebra_finch_tutored <- read_excel("./data/ZebraFinch.xlsx", sheet = 1)|>
+  mutate(tutored = "experimentally")|>
+   mutate(Position = factor(Position, levels = c("beginning", "middle", "end")))|>
+  mutate(Dur = exp(logDur))
+zebra_finch_repository <- read_excel("./data/ZebraFinch.xlsx", sheet = 2)|>
+  mutate(tutored = "randomly")|>
+  mutate(BirdID = as.character(BirdID))|>
+  mutate(Position = tolower(Position))|>
+   mutate(Position = factor(Position, levels = c("beginning", "middle", "end")))|>
+  mutate(Dur = exp(logDur))
 
-```{r}
-#| label: read-data
-
-avian_experimental <- read_xlsx("./data/Sakata.xlsx")
-avian_typical <- read_xlsx("./data/Sakata.xlsx", sheet=2)
-
+zebra_finch <- bind_rows(zebra_finch_tutored, zebra_finch_repository)|>
+    mutate(Position = factor(Position, levels = c("beginning", "middle", "end")))
 ```
 
 ### Descriptive statistics
@@ -61,7 +77,34 @@ avian_typical <- read_xlsx("./data/Sakata.xlsx", sheet=2)
 
 ```{r}
 
+#| label: summary-measures
 
+avian_experimental |>
+  ggplot(aes(Position, logDur, fill = Position)) +
+  geom_jitter(alpha = 0.15, width = 0.1) +
+  geom_violin(width = 0.3) +
+  scale_fill_brewer(palette = "Dark2")
+
+```
+
+```{r}
+
+avian_bm <- brm(
+  Dur ~ 1,
+  family = lognormal,
+  data = avian_experimental,
+  seed = 1234,
+  file = "cache/ch-fit-model-avian"
+)
+
+avian_experimental <- avian_experimental |>
+  mutate(
+    Dur = exp(logDur)
+  )
+
+summary(avian_bm)
+
+pp_check(avian_bm, ndraws = 50)
 
 ```
 
