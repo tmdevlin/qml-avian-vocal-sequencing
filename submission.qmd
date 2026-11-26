@@ -8,20 +8,28 @@ format:
 ---
 
 |  |  |
-|-----------------------|-------------------------------------------------|
+|------------------------------------|------------------------------------|
 | Group Project title | A Bayesian reanalysis of learning biases in avian vocal sequencing |
 | Group members | MEMBER 1, MEMBER 2, MEMBER 3 (use EXAM NUMBERS) |
 
 ## Background
 
 ```{r}
+
+#| label: setup
+#| message: false
+#| warning: false
+
+
 library(tidyverse) 
 theme_set(theme_light()) 
 library(brms) 
 library(bayesplot) 
 library(posterior) 
 library(ggdist) 
-library(tidybayes) 
+library(tidybayes)
+library(rmarkdown)
+library(readxl)
 ```
 
 This project sets out to re-analyse the data in the article “Learning Biases Underlie ‘Universals’ in Avian Vocal Sequencing” by James and Sakata (2017). The article explored whether zebra finches learned song sequences through cultural propagation or biological predispositions. They drew some connections to music and speech in humans; suggesting that the sensorimotor processes shared across a variety of vertebrates may underlie “universals” in phonological, prosodic, and musical patterns in humans.
@@ -38,11 +46,9 @@ They found that, despite being tutored with randomised songs, the zebra finches 
 
 ### Open Research statement
 
-The Research Compendium of this study (including data and code) is available at [INSERT LINK HERE]. The Compendium is structured thus: 
+The Research Compendium of this study (including data and code) is available at \[INSERT LINK HERE\]. The Compendium is structured thus:
 
-The data folder contains the data from James & Sakata (2017) in SupplementaryData and a cache folder which contains the cached output of the brms model we fit below. 
-SupplementaryData has two sheets with the experimental data, one for Experimentally tutored zebrafinch and one for the repository zebrafinch. We will read these files and merge them into a single data frame below. 
-The analysis file is submission.qmd. Running the code in this file will reproduce the analysis (note that the Bayesian model is cached, so the Bayesian model will not be fit again when running the code).
+The data folder contains the data from James & Sakata (2017) in SupplementaryData and a cache folder which contains the cached output of the brms model we fit below. SupplementaryData has two sheets with the experimental data, one for Experimentally tutored zebrafinch and one for the repository zebrafinch. We will read these files and merge them into a single data frame below. The analysis file is submission.qmd. Running the code in this file will reproduce the analysis (note that the Bayesian model is cached, so the Bayesian model will not be fit again when running the code).
 
 ## Data
 
@@ -53,7 +59,6 @@ The analysis file is submission.qmd. Running the code in this file will reproduc
 *Read the data here. If the data needs processing, like mutating columns or creating new ones, briefly explain why processing is needed and what you did*. *Include a description of each of the relevant columns in the data.*
 
 ```{r}
-
 #| label: read data 
 
 zebra_finch_tutored <- read_excel("./data/ZebraFinch.xlsx", sheet = 1)|>
@@ -69,6 +74,18 @@ zebra_finch_repository <- read_excel("./data/ZebraFinch.xlsx", sheet = 2)|>
 
 zebra_finch <- bind_rows(zebra_finch_tutored, zebra_finch_repository)|>
     mutate(Position = factor(Position, levels = c("beginning", "middle", "end")))
+```
+
+```{r}
+
+#| label: tbl-data
+#| tbl-cap: "Preview of the data"
+
+zebra_finch |>
+  select(BirdID, Position, PositionNumber, SyllableID, logDur) |>
+  head(10) |>
+  knitr::kable()
+
 ```
 
 ### Descriptive statistics
