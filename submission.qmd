@@ -1,6 +1,6 @@
 ---
 title: "QML 2026 Data analysis report"
-author: "GROUP NUMBER"
+author: "Group 2"
 date: last-modified
 format:
   html: default
@@ -10,7 +10,7 @@ format:
 |  |  |
 |------------------------------------|------------------------------------|
 | Group Project title | A Bayesian reanalysis of learning biases in avian vocal sequencing |
-| Group members | MEMBER 1, MEMBER 2, MEMBER 3 (use EXAM NUMBERS) |
+| Group members | B304624, B323780, B239229, B246324, B196041 |
 
 ## Background
 
@@ -48,32 +48,28 @@ They found that, despite being tutored with randomised songs, the zebra finches 
 
 The Research Compendium of this study (including data and code) is available at \[INSERT LINK HERE\]. The Compendium is structured thus:
 
-The data folder contains the data from James & Sakata (2017) in SupplementaryData and a cache folder which contains the cached output of the brms model we fit below. SupplementaryData has two sheets with the experimental data, one for Experimentally tutored zebrafinch and one for the repository zebrafinch. We will read these files and merge them into a single data frame below. The analysis file is submission.qmd. Running the code in this file will reproduce the analysis (note that the Bayesian model is cached, so the Bayesian model will not be fit again when running the code).
+The data folder contains the data from James & Sakata (2017) in SupplementaryData and a cache folder which contains the cached output of the brms model we fit below. SupplementaryData has two sheets with the experimental data, one for Experimentally tutored zebra finch and one for the repository zebrafinch. We will read these files and merge them into a single data frame below. The analysis file is submission.qmd. Running the code in this file will reproduce the analysis (note that the Bayesian model is cached, so the Bayesian model will not be fit again when running the code).
 
 ## Data
 
-*Remember to include all code and code output in the submission.*
-
 ### Read and process the data
-
-*Read the data here. If the data needs processing, like mutating columns or creating new ones, briefly explain why processing is needed and what you did*. *Include a description of each of the relevant columns in the data.*
 
 ```{r}
 #| label: read data 
 
-zebra_finch_tutored <- read_excel("./data/ZebraFinch.xlsx", sheet = 1)|>
-  mutate(tutored = "experimentally")|>
-   mutate(Position = factor(Position, levels = c("beginning", "middle", "end")))|>
+zebra_finch_experimentally_tutored <- read_excel("data/ZebraFinch.xlsx", sheet = 1)|>
+  mutate(Group = "experimental")|>
+  mutate(Position = factor(Position, levels = c("beginning", "middle", "end")))|>
   mutate(Dur = exp(logDur))
-zebra_finch_repository <- read_excel("./data/ZebraFinch.xlsx", sheet = 2)|>
-  mutate(tutored = "randomly")|>
+zebra_finch_species_typical <- read_excel("data/ZebraFinch.xlsx", sheet = 2)|>
+  mutate(Group = "typical")|>
   mutate(BirdID = as.character(BirdID))|>
   mutate(Position = tolower(Position))|>
-   mutate(Position = factor(Position, levels = c("beginning", "middle", "end")))|>
+  mutate(Position = factor(Position, levels = c("beginning", "middle", "end")))|>
   mutate(Dur = exp(logDur))
 
-zebra_finch <- bind_rows(zebra_finch_tutored, zebra_finch_repository)|>
-    mutate(Position = factor(Position, levels = c("beginning", "middle", "end")))
+zebra_finch <- bind_rows(zebra_finch_experimentally_tutored, zebra_finch_species_typical)|>
+  mutate(Position = factor(Position, levels = c("beginning", "middle", "end")))
 ```
 
 ```{r}
@@ -90,44 +86,166 @@ zebra_finch |>
 
 ### Descriptive statistics
 
-*Calculate and report appropriate summary measures for relevant variables in the data. Create relevant plots: for each, include in the main text a description of the plot (type, axes, colours used and so on) and a description of relevant patterns.*
+We find the total number of birds and the number of syllables in each group.
 
 ```{r}
 
-#| label: summary-measures
+#| label: number of birds per group
 
-avian_experimental |>
-  ggplot(aes(Position, logDur, fill = Position)) +
-  geom_jitter(alpha = 0.15, width = 0.1) +
-  geom_violin(width = 0.3) +
-  scale_fill_brewer(palette = "Dark2")
+zebra_finch |>
+  distinct(BirdID, Group) |>
+  count(Group)
+```
+
+By finding the number of instances for each Position Number in each Group, we find the possible Position Numbers (Experimentally Tutored: 1-8, Species Typical: 1-10).
+
+```{r}
+
+#|label: number of each position number per group
+
+zebra_finch |>
+  count(Group, PositionNumber)
+```
+
+Next, we find the number of instances each syllable position occurs (beginning, middle end) in each group, calculating the proportion occurring in each group.
+
+```{r}
+
+#| label: instances of each syllable position
+
+zebra_finch |>
+  count(Group, Position) |>
+    group_by(Group) |>
+    mutate(
+   tot = sum(n),
+   prop = round(n / tot, 2)
+  )
+
+```
+
+We obtain summary data (mean, sd, min, max) for the duration of syllables in each zebra finch group, data is rounded to 2dp.
+
+```{r}
+
+#| label: summary measures for species-typical tutored birds
+
+DurSummaryExperimentally <- zebra_finch_species_typical |>
+  group_by(Position) |>
+   summarise(
+   dur_mean = (mean(Dur)), dur_sd = (sd(Dur)),
+   dur_min = (min(Dur)), dur_max = (max(Dur))
+  )
+
+print(DurSummaryExperimentally)
 
 ```
 
 ```{r}
 
-avian_bm <- brm(
-  Dur ~ 1,
-  family = lognormal,
-  data = avian_experimental,
-  seed = 1234,
-  file = "cache/ch-fit-model-avian"
-)
+#| label: summary measures for randomly tutored birds
 
-avian_experimental <- avian_experimental |>
-  mutate(
-    Dur = exp(logDur)
+DurSummaryRandomly <- zebra_finch_experimentally_tutored |>
+  group_by(Position) |>
+    summarise(
+    dur_mean = (mean(Dur)), dur_sd = (sd(Dur)),
+    dur_min = (min(Dur)), dur_max = (max(Dur))
   )
 
-summary(avian_bm)
+print(DurSummaryRandomly)
 
-pp_check(avian_bm, ndraws = 50)
+```
+
+```{r}
+
+zebra_finch |>
+  group_by(Position) |>
+  ggplot(aes(Position, logDur, fill = Group)) +
+  geom_jitter(alpha = 0.08, width = 0.3) +
+  facet_grid(cols = vars(Group)) +
+  scale_y_continuous(limit = c(1.0, 2.75))+
+  geom_violin(alpha = 0.6, width = 0.2) +
+labs(x = "Syllable Position", y = "Syllable Duration (log ms)", title = "Syllable Duration in Each Syllable Position in Experimentally Tutored Group vs Species Typical Group") +
+  theme(legend.position = "none")
 
 ```
 
 ## Regression modelling
 
-*Write an explanation of the regression model(s) you will run to answer the chosen research question. Fit the model and get a model summary and relevant model plots. Report the results of the model.*
+$$
+\begin{equation}
+\begin{aligned}
+\text{logDur} & \sim Gaussian(\mu_i, \sigma)\\
+\mu_i & =  \beta_0\\
+&+ \beta_1 \cdot group_{T[i]}\\
+&+ \beta_2 \cdot pos_{M[i]}\\
+&+ \beta_3 \cdot pos_{E[i]}\\
+&+ \beta_4 \cdot group_{T[i]} \cdot pos_{M[i]}\\
+&+ \beta_5 \cdot group_{T[i]} \cdot pos_{E[i]}\\
+\end{aligned}
+\end{equation}
+$$
+
+```{r}
+
+#| label: brms
+
+zebra_finch_bm <- brm(
+  logDur ~ Group * Position,
+  family = gaussian(),
+  data = zebra_finch,
+  seed = 2309,
+  cores = 4,
+  file = "cache/zebra_finch_bm"
+)
+
+summary(zebra_finch_bm)
+
+```
+
+```{r}
+
+#| label: using ppcheck to double-check model fit
+
+pp_check(zebra_finch_bm, ndraws=50)
+
+```
+
+```{r}
+
+#| label: mcmc_trace diagnostics
+
+mcmc_trace(Zebra_Finch_bm, regex_pars = "^b_|sigma")
+
+```
+
+```{r}
+
+#| label: plotting draws
+
+zebra_finch_bm_draws <- as_draws_df(zebra_finch_bm) |>
+  mutate(
+    beginning = b_Intercept,
+    middle = b_Intercept + b_Positionmiddle,
+    end = b_Intercept + b_Positionend
+  )
+
+random_bm_long <- random_bm_draws |>
+  select(beginning, middle, end) |>
+  pivot_longer(everything(), names_to = "position", values_to = "epred")
+
+random_bm_long <- random_bm_long |>
+  mutate(position = factor(position, c("beginning", "middle", "end")))
+
+random_bm_long |>
+  ggplot(aes(x = epred, position)) +
+  stat_halfeye(.width = c(0.5, 0.8, 0.95))
+
+
+```
+
+```{r}
+
+```
 
 ## Discussion
 
