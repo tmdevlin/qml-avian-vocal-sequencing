@@ -214,7 +214,7 @@ pp_check(zebra_finch_bm, ndraws=50)
 
 #| label: mcmc_trace diagnostics
 
-mcmc_trace(Zebra_Finch_bm, regex_pars = "^b_|sigma")
+mcmc_trace(zebra_finch_bm, regex_pars = "^b_|sigma")
 
 ```
 
@@ -222,23 +222,35 @@ mcmc_trace(Zebra_Finch_bm, regex_pars = "^b_|sigma")
 
 #| label: plotting draws
 
-zebra_finch_bm_draws <- as_draws_df(zebra_finch_bm) |>
+zebra_finch_bm_draws <- as_draws_df(zebra_finch_bm)
+
+
+zebra_finch_bm_draws <- zebra_finch_bm_draws |>
   mutate(
-    beginning = b_Intercept,
-    middle = b_Intercept + b_Positionmiddle,
-    end = b_Intercept + b_Positionend
-  )
+    experimental_beginning = b_Intercept,
+    typical_beginning = b_Intercept + b_Grouptypical,
+    experimental_middle = b_Intercept + b_Positionmiddle,
+    experimental_end = b_Intercept + b_Positionend,
+    typical_middle = b_Intercept + b_Positionmiddle + `b_Grouptypical:Positionmiddle`,
+    typical_end = b_Intercept + b_Positionend + `b_Grouptypical:Positionend`
+)
 
-random_bm_long <- random_bm_draws |>
-  select(beginning, middle, end) |>
-  pivot_longer(everything(), names_to = "position", values_to = "epred")
+zebra_finch_bm_epred <- zebra_finch_bm_draws |> 
+  select(experimental_beginning:typical_end) |> 
+  pivot_longer(experimental_beginning:typical_end, names_to = "cond", values_to = "epred") |> 
+  separate(cond, c("group", "position"))
 
-random_bm_long <- random_bm_long |>
-  mutate(position = factor(position, c("beginning", "middle", "end")))
+zebra_finch_bm_epred <- zebra_finch_bm_epred |> 
+  mutate(
+  position = factor(position, levels = c("beginning", "middle", "end"))
+)
 
-random_bm_long |>
+zebra_finch_bm_epred |>
   ggplot(aes(x = epred, position)) +
-  stat_halfeye(.width = c(0.5, 0.8, 0.95))
+  stat_halfeye(.width = c(0.5, 0.8, 0.95,1), aes(fill = after_stat(level)), interval_size_range = c(0,0)) +
+  scale_fill_brewer(na.translate = FALSE, palette = "green") + 
+  facet_grid(cols = vars(group), scales = "free_x") +
+  labs(x = "Duration (log; ms)")
 
 
 ```
