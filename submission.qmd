@@ -252,6 +252,13 @@ zebra_finch_bm_epred |>
   facet_grid(cols = vars(group), scales = "free_x") +
   labs(x = "Duration (log; ms)")
 
+```
+
+```{r}
+
+```
+
+```{r}
 
 ```
 
